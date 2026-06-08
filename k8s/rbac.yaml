@@ -1,0 +1,48 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: lornu-system
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: bolt-operator
+  namespace: lornu-system
+  annotations:
+    # Azure Workload Identity annotation for zero-trust federated access
+    azure.workload.identity/client-id: "placeholder-azure-client-id"
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: bolt-operator-role
+rules:
+  # Permissions to watch and inspect cluster state
+  - apiGroups: [""]
+    resources: ["pods", "pods/status", "namespaces"]
+    verbs: ["get", "list", "watch"]
+  # Permission to remediate pods (restart by deletion)
+  - apiGroups: [""]
+    resources: ["pods"]
+    verbs: ["delete"]
+  # Permission to scale resources during auto-scaling anomaly interventions
+  - apiGroups: ["autoscaling"]
+    resources: ["horizontalpodautoscalers"]
+    verbs: ["get", "list", "watch", "update", "patch"]
+  # Permission to inspect deployment logs
+  - apiGroups: [""]
+    resources: ["pods/log"]
+    verbs: ["get", "list"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: bolt-operator-binding
+subjects:
+  - kind: ServiceAccount
+    name: bolt-operator
+    namespace: lornu-system
+roleRef:
+  kind: ClusterRole
+  name: bolt-operator-role
+  apiGroup: rbac.authorization.k8s.io
