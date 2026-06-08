@@ -1,0 +1,51 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: bolt-operator
+  namespace: lornu-system
+  labels:
+    lornu.ai/environment: production
+    lornu.ai/managed-by: gitops
+    lornu.ai/asset-id: bolt-operator
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: bolt-operator
+  template:
+    metadata:
+      labels:
+        app: bolt-operator
+        # Enabled for Azure Workload Identity injection
+        azure.workload.identity/use: "true"
+    spec:
+      serviceAccountName: bolt-operator
+      containers:
+        - name: operator
+          image: ghcr.io/stevedores-org/bolt:latest
+          imagePullPolicy: Always
+          env:
+            - name: BOLT_NAMESPACES
+              value: "lornu-ai-dev,lornu-ai-staging,lornu-ai-prod"
+            - name: BOLT_OTEL_ADDR
+              value: "0.0.0.0:8090"
+            - name: RUST_LOG
+              value: "bolt=info"
+          ports:
+            - containerPort: 8090
+              name: otel-ingest
+          resources:
+            limits:
+              cpu: "500m"
+              memory: "256Mi"
+            requests:
+              cpu: "100m"
+              memory: "64Mi"
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            runAsNonRoot: true
+            runAsUser: 10001
+            capabilities:
+              drop:
+                - ALL
