@@ -36,7 +36,9 @@ impl OTelMetricsState {
     pub async fn ingest_metric(&self, metric: MetricPayload) {
         if metric.metric_name.contains("memory") {
             let mut history = self.memory_history.lock().await;
-            let values = history.entry(metric.pod_name.clone()).or_insert_with(Vec::new);
+            let values = history
+                .entry(metric.pod_name.clone())
+                .or_insert_with(Vec::new);
             values.push(metric.value);
             if values.len() > 5 {
                 values.remove(0);
@@ -62,7 +64,9 @@ impl OTelMetricsState {
             }
         } else if metric.metric_name.contains("cpu") {
             let mut history = self.cpu_history.lock().await;
-            let values = history.entry(metric.pod_name.clone()).or_insert_with(Vec::new);
+            let values = history
+                .entry(metric.pod_name.clone())
+                .or_insert_with(Vec::new);
             values.push(metric.value);
             if values.len() > 5 {
                 values.remove(0);

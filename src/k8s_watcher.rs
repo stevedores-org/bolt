@@ -94,7 +94,10 @@ impl K8sWatcher {
                 name,
                 namespace,
                 reason: format!("Phase: {}", phase),
-                message: status.reason.clone().unwrap_or_else(|| "Unknown failure".to_string()),
+                message: status
+                    .reason
+                    .clone()
+                    .unwrap_or_else(|| "Unknown failure".to_string()),
                 restart_count: 0,
             });
         }
@@ -164,12 +167,15 @@ impl K8sWatcher {
                 "Initiating pod delete/restart for {}/{}...",
                 anomaly.namespace, anomaly.name
             );
-            
+
             let pods: Api<Pod> = Api::namespaced(self.client.clone(), &anomaly.namespace);
             let delete_params = kube::api::DeleteParams::default();
-            
+
             match pods.delete(&anomaly.name, &delete_params).await {
-                Ok(_) => info!("Successfully requested deletion of failing pod {}", anomaly.name),
+                Ok(_) => info!(
+                    "Successfully requested deletion of failing pod {}",
+                    anomaly.name
+                ),
                 Err(e) => error!("Failed to delete pod {}: {:?}", anomaly.name, e),
             }
         } else if anomaly.reason == "ImagePullBackOff" {
