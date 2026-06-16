@@ -1,3 +1,9 @@
+[workspace]
+members = [
+    ".",
+    "crates/bolt-py",
+]
+
 [package]
 name = "bolt"
 version = "0.1.0"

@@ -74,7 +74,7 @@ async fn main() -> Result<()> {
 
     // Wait for termination signal
     info!("Bolt Operator fully initialized. Waiting for termination signals...");
-    
+
     signal::ctrl_c().await?;
     info!("Received Ctrl+C signal. Initiating graceful shutdown...");
 
