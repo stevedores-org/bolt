@@ -61,14 +61,23 @@ struct Ledger {
     total_fixes: u32,
 }
 
-fn main() {
+/// A captured swarm run — what gets printed (pretty or JSON).
+struct SwarmReport {
+    workers: usize,
+    agents: usize,
+    elapsed_ms: u128,
+    runs: Vec<AgentRun>,
+    completed: u32,
+    merged: u32,
+    escalated: u32,
+    total_fixes: u32,
+}
+
+/// Run the swarm on bolt and collect the report.
+fn run_swarm() -> SwarmReport {
     const AGENTS: usize = 16;
 
     let rt = Runtime::builder().workers(8).build();
-    println!("⚡ bolt — Ray in Rust");
-    println!("   runtime: {} workers\n", rt.workers());
-    println!("dispatching {AGENTS} agents across shadow branches…\n");
-
     let ledger = rt.actor(Ledger::default());
     let started = Instant::now();
 
@@ -80,8 +89,7 @@ fn main() {
 
     // Record each outcome in the ledger actor (FIFO, lock-free).
     for run in &runs {
-        let passed = run.passed;
-        let fixes = run.fixes;
+        let (passed, fixes) = (run.passed, run.fixes);
         let _ = ledger.call(move |l: &mut Ledger| {
             l.completed += 1;
             l.total_fixes += fixes;
@@ -91,34 +99,84 @@ fn main() {
                 l.escalated += 1;
             }
         });
-        let status = if run.passed {
-            "✓ merged "
-        } else {
-            "⚠ escalate"
-        };
-        println!(
-            "  {status}  {:<18}  fixes={fixes}",
-            run.branch,
-            fixes = run.fixes
-        );
     }
 
     // The final read is processed after every record (mailbox is FIFO).
     let (completed, merged, escalated, total_fixes) =
         rt.get(ledger.call(|l: &mut Ledger| (l.completed, l.merged, l.escalated, l.total_fixes)));
-    let elapsed = started.elapsed();
 
+    SwarmReport {
+        workers: rt.workers(),
+        agents: AGENTS,
+        elapsed_ms: started.elapsed().as_millis(),
+        runs,
+        completed,
+        merged,
+        escalated,
+        total_fixes,
+    }
+}
+
+fn print_pretty(r: &SwarmReport) {
+    println!("⚡ bolt — Ray in Rust");
+    println!("   runtime: {} workers\n", r.workers);
+    println!("dispatching {} agents across shadow branches…\n", r.agents);
+    for run in &r.runs {
+        let status = if run.passed {
+            "✓ merged "
+        } else {
+            "⚠ escalate"
+        };
+        println!("  {status}  {:<18}  fixes={}", run.branch, run.fixes);
+    }
     println!("\n── AIVCS run ledger ──────────────────────────────");
-    println!("  agents completed : {completed}");
-    println!("  branches merged  : {merged}");
-    println!("  escalated to HITL: {escalated}");
-    println!("  total APR fixes  : {total_fixes}");
-    println!("  wall-clock       : {:.2}s", elapsed.as_secs_f64());
+    println!("  agents completed : {}", r.completed);
+    println!("  branches merged  : {}", r.merged);
+    println!("  escalated to HITL: {}", r.escalated);
+    println!("  total APR fixes  : {}", r.total_fixes);
+    println!("  wall-clock       : {:.2}s", r.elapsed_ms as f64 / 1000.0);
     println!("──────────────────────────────────────────────────");
     println!(
-        "\n{AGENTS} agents in ~{:.2}s on {} workers — bolt fanned the swarm out;",
-        elapsed.as_secs_f64(),
-        rt.workers()
+        "\n{} agents in ~{:.2}s on {} workers — bolt fanned the swarm out;",
+        r.agents,
+        r.elapsed_ms as f64 / 1000.0,
+        r.workers
     );
     println!("the ledger actor tallied every outcome with zero locks.");
+}
+
+/// Machine-readable output for the AIVCS demo UI. Branch names are
+/// `shadow/agent-NN` (ASCII), so no JSON string escaping is needed.
+fn print_json(r: &SwarmReport) {
+    let runs: Vec<String> = r
+        .runs
+        .iter()
+        .map(|run| {
+            format!(
+                "{{ \"branch\": \"{}\", \"passed\": {}, \"fixes\": {} }}",
+                run.branch, run.passed, run.fixes
+            )
+        })
+        .collect();
+    println!(
+        "{{\n  \"runtime\": \"bolt\",\n  \"workers\": {},\n  \"agents\": {},\n  \"elapsedMs\": {},\n  \"ledger\": {{ \"completed\": {}, \"merged\": {}, \"escalated\": {}, \"totalFixes\": {} }},\n  \"runs\": [\n    {}\n  ]\n}}",
+        r.workers,
+        r.agents,
+        r.elapsed_ms,
+        r.completed,
+        r.merged,
+        r.escalated,
+        r.total_fixes,
+        runs.join(",\n    ")
+    );
+}
+
+fn main() {
+    let as_json = std::env::args().any(|a| a == "--json");
+    let report = run_swarm();
+    if as_json {
+        print_json(&report);
+    } else {
+        print_pretty(&report);
+    }
 }
