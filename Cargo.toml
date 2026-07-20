@@ -8,6 +8,10 @@ members = [
 name = "bolt"
 version = "0.1.0"
 edition = "2021"
+description = "Ray in Rust — a minimal distributed task & actor runtime for the Lornu AI agent fleet"
+license = "MIT"
+repository = "https://github.com/stevedores-org/bolt"
+readme = "README.md"
 
 [dependencies]
 tokio = { version = "1.43", features = ["full"] }
@@ -22,3 +26,7 @@ tracing-subscriber = { version = "0.3", features = ["env-filter"] }
 clap = { version = "4.5", features = ["derive", "env"] }
 axum = { version = "0.7", features = ["macros"] }
 futures = "0.3"
+
+[[example]]
+name = "aivcs_swarm"
+path = "examples/aivcs_swarm.rs"
