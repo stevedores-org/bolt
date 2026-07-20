@@ -1,0 +1,34 @@
+[project]
+name = "bolt"
+repo = "lornu-ai/bolt"
+
+[policy]
+requires_human_approval = false
+required_checks = ["fmt", "clippy", "test"]
+
+[[checks]]
+name        = "fmt"
+description = "Check Rust code formatting"
+command     = ["cargo", "fmt", "--all", "--", "--check"]
+timeout     = 300
+check       = true
+
+[[checks]]
+name        = "clippy"
+description = "Run Cargo Clippy lint checks"
+command     = ["cargo", "clippy", "--workspace", "--all-targets", "--no-default-features", "--", "-D", "warnings"]
+timeout     = 600
+check       = true
+
+[[checks]]
+name        = "test"
+description = "Run all unit and integration tests"
+command     = ["cargo", "test", "--workspace", "--no-default-features"]
+timeout     = 600
+check       = true
+
+[propel]
+enabled = true
+provider = "propel.aivcs.io"
+github_status_checks = true
+github_pr_comments = true
